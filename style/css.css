@@ -40,6 +40,12 @@
             height: 250px;
             margin: 0 auto;
             cursor: move;
+            display: flex;             
+            justify-content: center;   
+            align-items: center;       
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         #logo-3d-container:active { cursor: grabbing; }
 

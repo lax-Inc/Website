@@ -21,6 +21,8 @@ function setCookie(name, value, days) {
 
         function create3DLogo(containerId, size, isInteractive) {
             const container = document.getElementById(containerId);
+            container.innerHTML = ''; 
+            
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
             const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -62,6 +64,10 @@ function setCookie(name, value, days) {
             let previousMousePosition = { x: 0, y: 0 };
 
             const onMove = (e) => {
+                if (isDragging && isInteractive) {
+                    if (e.cancelable) e.preventDefault(); 
+                }
+
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
@@ -71,18 +77,31 @@ function setCookie(name, value, days) {
                         y: clientY - previousMousePosition.y
                     };
 
-                    group.rotation.y += deltaMove.x * 0.01;
+                    group.rotation.y += deltaMove.x * 0.01; 
                     group.rotation.x += deltaMove.y * 0.01;
                 }
                 previousMousePosition = { x: clientX, y: clientY };
             };
 
-            container.addEventListener('mousedown', () => isDragging = true);
-            container.addEventListener('touchstart', () => isDragging = true);
-            window.addEventListener('mouseup', () => isDragging = false);
-            window.addEventListener('touchend', () => isDragging = false);
+            const startDrag = (e) => {
+                isDragging = true;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                previousMousePosition = { x: clientX, y: clientY };
+            };
+
+            const stopDrag = () => {
+                isDragging = false;
+            };
+
+            container.addEventListener('mousedown', startDrag);
+            container.addEventListener('touchstart', startDrag, { passive: false });
+            
+            window.addEventListener('mouseup', stopDrag);
+            window.addEventListener('touchend', stopDrag);
+            
             window.addEventListener('mousemove', onMove);
-            window.addEventListener('touchmove', onMove);
+            window.addEventListener('touchmove', onMove, { passive: false });
 
             function animate() {
                 requestAnimationFrame(animate);
