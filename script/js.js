@@ -19,12 +19,24 @@ function getCookie(name) {
     return null;
 }
 
-function updateDynamicFavicon(renderer) {
+function updateDynamicFavicon(renderer, scene, camera, group) {
     const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+    
+    const originalScale = group.scale.x;
+    const originalZ = camera.position.z;
+    
+    group.scale.set(1.6, 1.6, 1.6);а
+    camera.position.z = 2.2;
+    
+    renderer.render(scene, camera);
+
     link.type = 'image/png';
     link.rel = 'shortcut icon';
     link.href = renderer.domElement.toDataURL("image/png");
     document.getElementsByTagName('head')[0].appendChild(link);
+
+    group.scale.set(originalScale, originalScale, originalScale);
+    camera.position.z = originalZ;
 }
 
 function create3DLogo(containerId, size, isInteractive) {
