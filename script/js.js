@@ -1,3 +1,5 @@
+let globalRotationY = 0;
+
 function setCookie(name, value, days) {
     let expires = "";
     if (days) {
@@ -25,7 +27,7 @@ function updateDynamicFavicon(renderer, scene, camera, group) {
     const originalScale = group.scale.x;
     const originalZ = camera.position.z;
     
-    group.scale.set(1.6, 1.6, 1.6);а
+    group.scale.set(1.6, 1.6, 1.6);
     camera.position.z = 2.2;
     
     renderer.render(scene, camera);
@@ -33,7 +35,10 @@ function updateDynamicFavicon(renderer, scene, camera, group) {
     link.type = 'image/png';
     link.rel = 'shortcut icon';
     link.href = renderer.domElement.toDataURL("image/png");
-    document.getElementsByTagName('head')[0].appendChild(link);
+    
+    if (!document.querySelector("link[rel*='icon']")) {
+        document.getElementsByTagName('head')[0].appendChild(link);
+    }
 
     group.scale.set(originalScale, originalScale, originalScale);
     camera.position.z = originalZ;
@@ -41,9 +46,11 @@ function updateDynamicFavicon(renderer, scene, camera, group) {
 
 function create3DLogo(containerId, size, isInteractive) {
     const container = document.getElementById(containerId);
+    if (!container) return;
     container.innerHTML = ''; 
     
     const scene = new THREE.Scene();
+    const cameraZ = size < 100 ? 2.5 : 3;
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
     
     const renderer = new THREE.WebGLRenderer({ 
@@ -83,30 +90,34 @@ function create3DLogo(containerId, size, isInteractive) {
     scene.add(light);
     scene.add(new THREE.AmbientLight(0x404040));
 
-    camera.position.z = 3;
+    camera.position.z = cameraZ;
 
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
+    
+    let rotationOffset = 0;
+    let manualRotationX = 0;
 
     const onMove = (e) => {
-        if (isDragging && isInteractive) {
-            if (e.cancelable) e.preventDefault(); 
-        }
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
         if (isDragging && isInteractive) {
+            if (e.cancelable && e.type === 'touchmove') e.preventDefault(); 
+            
             const deltaMove = {
                 x: clientX - previousMousePosition.x,
                 y: clientY - previousMousePosition.y
             };
-            group.rotation.y += deltaMove.x * 0.01; 
-            group.rotation.x += deltaMove.y * 0.01;
+            
+            rotationOffset += deltaMove.x * 0.005;
+            manualRotationX += deltaMove.y * 0.005;
         }
         previousMousePosition = { x: clientX, y: clientY };
     };
 
     const startDrag = (e) => {
+        if (!isInteractive) return;
         isDragging = true;
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -115,41 +126,58 @@ function create3DLogo(containerId, size, isInteractive) {
 
     const stopDrag = () => { isDragging = false; };
 
-    container.addEventListener('mousedown', startDrag);
-    container.addEventListener('touchstart', startDrag, { passive: false });
-    window.addEventListener('mouseup', stopDrag);
-    window.addEventListener('touchend', stopDrag);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('touchmove', onMove, { passive: false });
+    if (isInteractive) {
+        container.addEventListener('mousedown', startDrag);
+        container.addEventListener('touchstart', startDrag, { passive: false });
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchend', stopDrag);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove, { passive: false });
+    }
+
+    let frameCount = 0;
 
     function animate() {
         requestAnimationFrame(animate);
-        if (!isDragging) {
-            group.rotation.y += 0.005;
-            group.rotation.x += 0.002;
-        }
-        renderer.render(scene, camera);
-
+        
         if (containerId === 'logo-3d-container') {
-            updateDynamicFavicon(renderer);
+            globalRotationY += 0.005;
+            
+            frameCount++;
+            if (frameCount % 30 === 0) {
+                updateDynamicFavicon(renderer, scene, camera, group);
+            }
         }
+
+        if (!isDragging) {
+            rotationOffset = rotationOffset * 0.95; 
+            manualRotationX = manualRotationX * 0.95;
+        }
+
+        group.rotation.y = globalRotationY + rotationOffset;
+        group.rotation.x = 0.002 + manualRotationX;
+
+        renderer.render(scene, camera);
     }
     animate();
 }
 
 function toggleTheme() {
-    const body = document.body;
     const checkbox = document.getElementById('themeCheckbox');
     const theme = checkbox.checked ? 'light' : 'dark';
-    body.setAttribute('data-theme', theme);
+    
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+    
     setCookie('lax_theme', theme, 30);
 }
 
 function initTheme() {
     const savedTheme = getCookie('lax_theme') || 'dark';
     const checkbox = document.getElementById('themeCheckbox');
+    document.documentElement.setAttribute('data-theme', savedTheme);
     document.body.setAttribute('data-theme', savedTheme);
-    checkbox.checked = (savedTheme === 'light');
+    if(checkbox) checkbox.checked = (savedTheme === 'light');
 }
 
 const examples = [
@@ -252,10 +280,115 @@ function downloadCode() {
     a.click();
 }
 
+function initPowerTrail() {
+    const textEl = document.getElementById('power-text');
+    if (!textEl) return;
+
+    const oldCanvas = document.getElementById('power-canvas');
+    if (oldCanvas) oldCanvas.remove();
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'power-canvas';
+    document.body.appendChild(canvas);
+    
+    const ctx = canvas.getContext('2d');
+    let points = [];
+    
+    let isHoveringText = false; 
+    let lastActiveTime = 0;     
+    let mouse = { x: 0, y: 0 }; 
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    window.addEventListener('mousemove', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        
+        const timeSinceLeave = Date.now() - lastActiveTime;
+        const isActive = isHoveringText || (lastActiveTime > 0 && timeSinceLeave < 1000);
+
+        if (isActive) {
+            points.push({ 
+                x: mouse.x, 
+                y: mouse.y, 
+                age: 0,
+                dx: (Math.random() - 0.5) * 2,
+                dy: (Math.random() - 0.5) * 2
+            });
+        }
+    });
+
+    textEl.addEventListener('mouseenter', () => {
+        isHoveringText = true;
+        lastActiveTime = 0; 
+    });
+
+    textEl.addEventListener('mouseleave', () => {
+        isHoveringText = false;
+        lastActiveTime = Date.now();
+    });
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (points.length > 1) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#fbbf24';
+            
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            for (let i = 0; i < points.length - 1; i++) {
+                const p1 = points[i];
+                const p2 = points[i+1];
+                
+                ctx.beginPath();
+                ctx.moveTo(p1.x + p1.dx, p1.y + p1.dy);
+                ctx.lineTo(p2.x + p2.dx, p2.y + p2.dy);
+                
+                const alpha = 1 - (p1.age / 30);
+                if (alpha <= 0) continue;
+
+                const gradient = ctx.createLinearGradient(p1.x, p1.y, p2.x, p2.y);
+                gradient.addColorStop(0, `rgba(168, 85, 247, ${alpha})`);
+                gradient.addColorStop(1, `rgba(251, 191, 36, ${alpha})`);
+                
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 10 * alpha;
+                ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        for (let i = 0; i < points.length; i++) {
+            points[i].age += 1;
+            points[i].x += points[i].dx * 0.5;
+            points[i].y += points[i].dy * 0.5;
+        }
+        
+        points = points.filter(p => p.age < 30);
+        
+        requestAnimationFrame(animate);
+    }
+    animate();
+}
+
 window.onload = () => {
     initTheme();
+
+    initPowerTrail();
+
     create3DLogo('logo-3d-container', 250, true);
-    create3DLogo('nav-mini-logo', 40, true);
-    create3DLogo('footer-mini-logo', 40, true);
+    
+    setTimeout(() => {
+        create3DLogo('nav-mini-logo', 40, true);
+        create3DLogo('footer-mini-logo', 40, true);
+    }, 100);
+
     typeCode(examples[0]);
 };
