@@ -584,3 +584,42 @@
     align-items: center;
     height: 3.5rem;
 }
+.docs-cta-container {
+    background: var(--secondary-bg);
+    padding: 4rem 2rem;
+    border-radius: 32px;
+    border: 1px solid rgba(128,128,128,0.1);
+    text-align: center;
+    box-shadow: var(--card-shadow);
+}
+
+.retro-doc-button {
+    background: #fbca1f;
+    font-family: 'Inter', sans-serif;
+    padding: 0.6em 1.3em;
+    font-weight: 900;
+    font-size: 18px;
+    border: 3px solid #000;
+    border-radius: 0.4em;
+    box-shadow: 0.1em 0.1em #000;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    color: #000;
+}
+
+.retro-doc-button:hover {
+    transform: translate(-0.05em, -0.05em);
+    box-shadow: 0.15em 0.15em #000;
+}
+
+.retro-doc-button:active {
+    transform: translate(0.05em, 0.05em);
+    box-shadow: 0.05em 0.05em #000;
+}
+
+@media (max-width: 768px) {
+    .docs-cta-container {
+        padding: 2rem 1rem;
+        margin: 0 1rem;
+    }
+}
